@@ -31,7 +31,14 @@ export function ProfileSetupView({ lang, onDone, initialProfileId }: Props) {
   const [birthTime, setBirthTime] = useState(editing?.birthTime ?? '')
   const [country, setCountry] = useState(parsed.country || '')
   const [province, setProvince] = useState(parsed.province || '')
-  const [city, setCity] = useState(parsed.city || '')
+  const optionsForCity = useMemo(() => {
+    if (parsed.country === '中国' && parsed.province) return CITIES_BY_PROVINCE_ZH[parsed.province] ?? []
+    if (parsed.country) return CITIES_BY_COUNTRY_ZH[parsed.country] ?? []
+    return []
+  }, [parsed.country, parsed.province])
+  const isCityInList = parsed.city && optionsForCity.includes(parsed.city)
+  const [city, setCity] = useState(isCityInList ? parsed.city : (parsed.city ? '其他' : ''))
+  const [cityOtherText, setCityOtherText] = useState(parsed.city && !isCityInList ? parsed.city : '')
   const [events, setEvents] = useState<CalibrationEvent[]>(editing?.calibrationEvents ?? [])
   const [timeYear, setTimeYear] = useState('')
   const [timeMonth, setTimeMonth] = useState('')
@@ -59,7 +66,8 @@ export function ProfileSetupView({ lang, onDone, initialProfileId }: Props) {
     setEvents((prev) => prev.filter((e) => e.id !== id))
   }
 
-  const birthPlaceStr = joinBirthPlace(country, province, city)
+  const cityValue = city === '其他' ? (cityOtherText.trim() || '其他') : city
+  const birthPlaceStr = joinBirthPlace(country, province, cityValue)
 
   const save = () => {
     const profile: Profile = {
@@ -203,7 +211,7 @@ export function ProfileSetupView({ lang, onDone, initialProfileId }: Props) {
               )}
               <select
                 value={city}
-                onChange={(e) => setCity(e.target.value)}
+                onChange={(e) => { setCity(e.target.value); if (e.target.value !== '其他') setCityOtherText('') }}
                 style={{ padding: '0.5rem', border: '1px solid #e5e7eb', borderRadius: 8, minWidth: 120 }}
               >
                 <option value="">{lang === 'zh' ? '请选市' : 'City'}</option>
@@ -213,6 +221,15 @@ export function ProfileSetupView({ lang, onDone, initialProfileId }: Props) {
                     ? (CITIES_BY_COUNTRY_ZH[country] ?? []).map((c) => <option key={c} value={c}>{c}</option>)
                     : null}
               </select>
+              {city === '其他' && (
+                <input
+                  type="text"
+                  value={cityOtherText}
+                  onChange={(e) => setCityOtherText(e.target.value)}
+                  placeholder={lang === 'zh' ? '请填写具体城市' : 'Enter city name'}
+                  style={{ padding: '0.5rem', border: '1px solid #e5e7eb', borderRadius: 8, minWidth: 140 }}
+                />
+              )}
             </div>
           </div>
         </div>

@@ -92,6 +92,7 @@ export function DayView({ date, lang, profileId, currentProfile, onNeedProfile }
   const [showRegret, setShowRegret] = useState(false)
   const [draftTimeline, setDraftTimeline] = useState<TimelineEntry[]>([])
   const [draftMood, setDraftMood] = useState<number | null>(null)
+  const [draftWhatIfContext, setDraftWhatIfContext] = useState('')
   const isPast = isBefore(startOfDay(date), startOfDay(new Date()))
   const dateStr = format(date, 'yyyy-MM-dd')
   const stored = profileId ? getDayRecord(dateStr, profileId) : null
@@ -117,6 +118,7 @@ export function DayView({ date, lang, profileId, currentProfile, onNeedProfile }
 
   const displayTimeline = profileId ? record.timeline : draftTimeline
   const displayMood = profileId ? record.moodScore : draftMood
+  const displayWhatIfContext = profileId ? (record.whatIfContext ?? '') : draftWhatIfContext
 
   const constellationMode = loadConstellationMode()
   let fortune = getFortune(date, lang)
@@ -201,8 +203,11 @@ export function DayView({ date, lang, profileId, currentProfile, onNeedProfile }
         moves={moves}
         edits={record.edits}
         lang={lang}
-        whatIfContext={record.whatIfContext}
-        onWhatIfContextChange={(v) => persist({ whatIfContext: v })}
+        whatIfContext={displayWhatIfContext}
+        onWhatIfContextChange={(v) => {
+          if (profileId) persist({ whatIfContext: v })
+          else setDraftWhatIfContext(v)
+        }}
       />
       {isPast && record.edits > 0 && profileId && (
         <button
