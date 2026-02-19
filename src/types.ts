@@ -6,7 +6,7 @@ export interface Profile {
   name?: string
   birthDate: string // YYYY-MM-DD
   birthTime?: string // HH:mm，出生时间
-  birthPlace?: string // 地点名称或经纬度，通过经纬度可校准出生时间生辰
+  birthPlace?: string // 存储格式 "国家|省|市"，如 "中国|广东省|深圳市" 或 "美国||纽约"
   calibrationEvents: CalibrationEvent[]
   createdAt: string
 }

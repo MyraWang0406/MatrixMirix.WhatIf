@@ -90,6 +90,8 @@ function FutureReminderBanner({ lang, profileId }: { lang: Lang; profileId: stri
 export function DayView({ date, lang, profileId, currentProfile, onNeedProfile }: Props) {
   const [, setRefresh] = useState(0)
   const [showRegret, setShowRegret] = useState(false)
+  const [draftTimeline, setDraftTimeline] = useState<TimelineEntry[]>([])
+  const [draftMood, setDraftMood] = useState<number | null>(null)
   const isPast = isBefore(startOfDay(date), startOfDay(new Date()))
   const dateStr = format(date, 'yyyy-MM-dd')
   const stored = profileId ? getDayRecord(dateStr, profileId) : null
@@ -112,6 +114,9 @@ export function DayView({ date, lang, profileId, currentProfile, onNeedProfile }
         timeline: [],
         edits: 0,
       }
+
+  const displayTimeline = profileId ? record.timeline : draftTimeline
+  const displayMood = profileId ? record.moodScore : draftMood
 
   const constellationMode = loadConstellationMode()
   let fortune = getFortune(date, lang)
@@ -139,28 +144,28 @@ export function DayView({ date, lang, profileId, currentProfile, onNeedProfile }
 
   const handleMoodChange = useCallback(
     (v: number | null) => {
-      if (!profileId) {
-        onNeedProfile()
-        return
+      if (profileId) {
+        persist({ moodScore: v })
+      } else {
+        setDraftMood(v)
       }
-      persist({ moodScore: v })
     },
-    [persist, profileId, onNeedProfile]
+    [persist, profileId]
   )
 
   const handleTimelineChange = useCallback(
-    (timeline: typeof record.timeline) => {
-      if (!profileId) {
-        onNeedProfile()
-        return
+    (timeline: TimelineEntry[]) => {
+      if (profileId) {
+        persist({ timeline })
+      } else {
+        setDraftTimeline(timeline)
       }
-      persist({ timeline })
     },
-    [persist, profileId, onNeedProfile]
+    [persist, profileId]
   )
 
-  const moves = (record.timeline?.length ?? 0) + (record.moodScore != null ? 1 : 0)
-  const scores = [record.moodScore].filter((s): s is number => s != null && !isNaN(s))
+  const moves = (displayTimeline?.length ?? 0) + (displayMood != null ? 1 : 0)
+  const scores = [displayMood].filter((s): s is number => s != null && !isNaN(s))
 
   return (
     <div className="day-view" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -173,13 +178,21 @@ export function DayView({ date, lang, profileId, currentProfile, onNeedProfile }
         hasProfile={!!profileId}
         profileBirthDate={currentProfile?.birthDate}
       />
+      {!profileId && (
+        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0 }}>
+          {lang === 'zh' ? '未登录，编辑不会保存；' : 'Not logged in — edits are not saved. '}
+          <button type="button" onClick={onNeedProfile} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--primary)', cursor: 'pointer', textDecoration: 'underline', fontSize: 'inherit' }}>
+            {lang === 'zh' ? '登录/注册后可保存' : 'Sign in to save'}
+          </button>
+        </p>
+      )}
       <EmotionRecord
-        score={record.moodScore}
+        score={displayMood}
         lang={lang}
         onChange={handleMoodChange}
       />
       <MemoWhatIf
-        entries={record.timeline}
+        entries={displayTimeline}
         lang={lang}
         onEntriesChange={handleTimelineChange}
       />

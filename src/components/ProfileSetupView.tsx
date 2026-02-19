@@ -1,10 +1,19 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import type { Lang } from '../i18n'
 import { getText } from '../i18n'
 import type { Profile, CalibrationEvent } from '../types'
 import { loadProfiles, saveProfiles, setCurrentProfileId } from '../store'
 import { genId } from '../utils/id'
 import { syncProfile } from '../services/evermemos'
+import {
+  parseBirthPlace,
+  joinBirthPlace,
+  COUNTRIES_ZH,
+  COUNTRIES_EN,
+  PROVINCES_ZH,
+  CITIES_BY_PROVINCE_ZH,
+  CITIES_BY_COUNTRY_ZH,
+} from '../data/regions'
 
 interface Props {
   lang: Lang
@@ -16,10 +25,13 @@ export function ProfileSetupView({ lang, onDone, initialProfileId }: Props) {
   const T = getText(lang)
   const existing = loadProfiles()
   const editing = initialProfileId ? existing.find((p) => p.id === initialProfileId) : null
+  const parsed = useMemo(() => parseBirthPlace(editing?.birthPlace), [editing?.birthPlace])
   const [name, setName] = useState(editing?.name ?? '')
   const [birthDate, setBirthDate] = useState(editing?.birthDate ?? '')
   const [birthTime, setBirthTime] = useState(editing?.birthTime ?? '')
-  const [birthPlace, setBirthPlace] = useState(editing?.birthPlace ?? '')
+  const [country, setCountry] = useState(parsed.country || '')
+  const [province, setProvince] = useState(parsed.province || '')
+  const [city, setCity] = useState(parsed.city || '')
   const [events, setEvents] = useState<CalibrationEvent[]>(editing?.calibrationEvents ?? [])
   const [timeYear, setTimeYear] = useState('')
   const [timeMonth, setTimeMonth] = useState('')
@@ -47,13 +59,15 @@ export function ProfileSetupView({ lang, onDone, initialProfileId }: Props) {
     setEvents((prev) => prev.filter((e) => e.id !== id))
   }
 
+  const birthPlaceStr = joinBirthPlace(country, province, city)
+
   const save = () => {
     const profile: Profile = {
       id: editing?.id ?? genId(),
       name: name.trim() || undefined,
       birthDate: birthDate || new Date().toISOString().slice(0, 10),
       birthTime: birthTime.trim() || undefined,
-      birthPlace: birthPlace.trim() || undefined,
+      birthPlace: birthPlaceStr || undefined,
       calibrationEvents: events,
       createdAt: editing?.createdAt ?? new Date().toISOString(),
     }
@@ -64,7 +78,7 @@ export function ProfileSetupView({ lang, onDone, initialProfileId }: Props) {
       name: profile.name,
       birthDate: profile.birthDate,
       birthTime: profile.birthTime,
-      birthPlace: profile.birthPlace,
+      birthPlace: birthPlaceStr || profile.birthPlace,
       calibrationEvents: profile.calibrationEvents,
     }).catch(() => {})
     onDone()
@@ -164,18 +178,42 @@ export function ProfileSetupView({ lang, onDone, initialProfileId }: Props) {
           <div>
             <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{T.profileBirthPlace}</label>
             <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0.15rem 0 0.25rem 0' }}>{T.profileBirthPlaceHint}</p>
-            <input
-              value={birthPlace}
-              onChange={(e) => setBirthPlace(e.target.value)}
-              placeholder={lang === 'zh' ? '地点或经纬度，如 39.9,116.4' : 'Place or lat,lng e.g. 39.9,116.4'}
-              style={{
-                width: '100%',
-                padding: '0.5rem',
-                border: '1px solid #e5e7eb',
-                borderRadius: 8,
-                marginTop: '0.25rem',
-              }}
-            />
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.25rem' }}>
+              <select
+                value={country}
+                onChange={(e) => { setCountry(e.target.value); setProvince(''); setCity('') }}
+                style={{ padding: '0.5rem', border: '1px solid #e5e7eb', borderRadius: 8, minWidth: 120 }}
+              >
+                <option value="">{lang === 'zh' ? '请选国家' : 'Country'}</option>
+                {COUNTRIES_ZH.map((c, i) => (
+                  <option key={c} value={c}>{lang === 'zh' ? c : COUNTRIES_EN[i]}</option>
+                ))}
+              </select>
+              {country === '中国' && (
+                <select
+                  value={province}
+                  onChange={(e) => { setProvince(e.target.value); setCity('') }}
+                  style={{ padding: '0.5rem', border: '1px solid #e5e7eb', borderRadius: 8, minWidth: 140 }}
+                >
+                  <option value="">{lang === 'zh' ? '请选省' : 'Province'}</option>
+                  {PROVINCES_ZH.map((p) => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+              )}
+              <select
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                style={{ padding: '0.5rem', border: '1px solid #e5e7eb', borderRadius: 8, minWidth: 120 }}
+              >
+                <option value="">{lang === 'zh' ? '请选市' : 'City'}</option>
+                {country === '中国' && province
+                  ? (CITIES_BY_PROVINCE_ZH[province] ?? []).map((c) => <option key={c} value={c}>{c}</option>)
+                  : country
+                    ? (CITIES_BY_COUNTRY_ZH[country] ?? []).map((c) => <option key={c} value={c}>{c}</option>)
+                    : null}
+              </select>
+            </div>
           </div>
         </div>
       </div>
