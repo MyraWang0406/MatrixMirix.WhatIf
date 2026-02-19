@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { loadLang, saveLang, getCurrentProfileId, getCurrentProfile } from './store'
 import type { Dimension } from './types'
 import type { Lang } from './i18n'
@@ -26,6 +26,10 @@ export default function App() {
     setLangState(l)
     saveLang(l)
   }, [])
+
+  useEffect(() => {
+    document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en'
+  }, [lang])
 
   const setDimension = useCallback((d: Dimension) => {
     setDimensionState(d)

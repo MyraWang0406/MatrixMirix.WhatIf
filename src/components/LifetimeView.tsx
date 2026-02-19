@@ -31,8 +31,26 @@ export function LifetimeView({ date: _date, lang, profileId }: Props) {
 
   const points: KPoint[] = useMemo(() => {
     if (!profileId) {
-      const y = new Date().getFullYear()
-      return Array.from({ length: 5 }, (_, i) => ({ date: `${y - 4 + i}-01-01`, score: 4 + (i % 4), label: String(y - 4 + i) }))
+      // 参考流年大运K线：起步约50，青年期低谷(约28)，中晚年升高再略降，分数约 0–100
+      const lifeCurveScore = (age: number): number => {
+        if (age <= 0) return 48
+        if (age <= 20) return 45 + (age / 20) * 12
+        if (age <= 29) return 57 - (age - 20) * (22 / 9)
+        if (age <= 50) return 35 + (age - 29) * (30 / 21)
+        if (age <= 80) return 65 + (age - 50) * (28 / 30)
+        return Math.max(72, 93 - (age - 80) * 1.4)
+      }
+      const currentYear = new Date().getFullYear()
+      const baseYear = currentYear - 50
+      return Array.from({ length: 90 }, (_, i) => {
+        const age = i + 1
+        const y = baseYear + age
+        return {
+          date: `${y}-01-01`,
+          score: Math.round(lifeCurveScore(age) * 10) / 10,
+          label: String(y),
+        }
+      })
     }
     const years = Array.from(byYear.keys()).sort()
     return years.map((y) => {

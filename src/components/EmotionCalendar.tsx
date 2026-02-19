@@ -202,6 +202,7 @@ export function EmotionCalendar({ fortune, lang, constellationMode, onConstellat
           borderTop: '1px solid #f3f4f6',
           fontSize: '0.8rem',
           color: 'var(--text-muted)',
+          whiteSpace: 'pre-line',
         }}
       >
         {T.footnote}

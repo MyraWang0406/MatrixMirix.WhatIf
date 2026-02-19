@@ -19,6 +19,18 @@ interface Props {
 
 const localeMap = { zh: zhCN, en: enUS }
 
+function getYAxisTicks(yMin: number, yMax: number, granularity: string): number[] {
+  if (granularity === 'lifetime' || yMax - yMin > 20) {
+    const step = 20
+    const low = Math.floor(yMin / step) * step
+    const high = Math.ceil(yMax / step) * step
+    const ticks: number[] = []
+    for (let v = low; v <= high; v += step) ticks.push(v)
+    return ticks.length ? ticks : [0, 50, 100]
+  }
+  return [0, 2.5, 5, 7.5, 10]
+}
+
 export function KLineChart({ points, lang, granularity, height = 200 }: Props) {
   const locale = localeMap[lang]
   const T = getText(lang)
@@ -32,6 +44,11 @@ export function KLineChart({ points, lang, granularity, height = 200 }: Props) {
   const yMax = max + pad
   const yRange = yMax - yMin
 
+  const leftMargin = 52
+  const chartWidth = Math.max(400, points.length * 36)
+  const totalWidth = leftMargin + chartWidth
+  const stepX = valid.length > 1 ? chartWidth / (valid.length - 1) : 0
+
   const formatDate = (d: string) => {
     const parsed = parseISO(d)
     if (granularity === 'day') return format(parsed, 'HH:mm', { locale })
@@ -42,6 +59,8 @@ export function KLineChart({ points, lang, granularity, height = 200 }: Props) {
   }
 
   const getChartY = (s: number) => 20 + (1 - (s - yMin) / yRange) * (height - 40)
+  const yAxisTicks = getYAxisTicks(yMin, yMax, granularity)
+  const showYearEvery = granularity === 'lifetime' && points.length > 15 ? 10 : 1
 
   return (
     <section
@@ -53,31 +72,46 @@ export function KLineChart({ points, lang, granularity, height = 200 }: Props) {
         boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
       }}
     >
+      {granularity === 'lifetime' && (
+        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+          {T.scoreAxis} 0–100 · {T.yearAxis}
+        </div>
+      )}
       <svg
-        viewBox={`0 0 ${Math.max(400, points.length * 40)} ${height}`}
+        viewBox={`0 0 ${totalWidth} ${height}`}
         preserveAspectRatio="xMidYMid meet"
         style={{ width: '100%', maxWidth: '100%', height, display: 'block' }}
       >
-        {[0, 2.5, 5, 7.5, 10].map((v) => {
-          if (v < yMin || v > yMax) return null
+        {yAxisTicks.map((v) => {
+          if (v < yMin - 1 || v > yMax + 1) return null
           const y = getChartY(v)
           return (
-            <line
-              key={v}
-              x1={40}
-              y1={y}
-              x2={Math.max(400, points.length * 40)}
-              y2={y}
-              stroke="#e5e7eb"
-              strokeWidth={0.5}
-            />
+            <g key={v}>
+              <line
+                x1={leftMargin}
+                y1={y}
+                x2={totalWidth}
+                y2={y}
+                stroke="#e5e7eb"
+                strokeWidth={0.5}
+              />
+              <text
+                x={leftMargin - 6}
+                y={y + 4}
+                fontSize={10}
+                fill="var(--text-muted)"
+                textAnchor="end"
+              >
+                {v}
+              </text>
+            </g>
           )
         })}
         {valid.length >= 2 &&
           valid.slice(1).map((p, i) => {
             const prev = valid[i]
-            const x1 = 50 + i * 36
-            const x2 = 50 + (i + 1) * 36
+            const x1 = leftMargin + i * stepX
+            const x2 = leftMargin + (i + 1) * stepX
             const y1 = getChartY(prev.score!)
             const y2 = getChartY(p.score!)
             const isUp = p.score! >= prev.score!
@@ -89,30 +123,34 @@ export function KLineChart({ points, lang, granularity, height = 200 }: Props) {
                   x2={x2}
                   y2={y2}
                   stroke={isUp ? 'var(--k-up)' : 'var(--k-down)'}
-                  strokeWidth={2.5}
+                  strokeWidth={granularity === 'lifetime' ? 3.5 : 2.5}
                   strokeLinecap="round"
                 />
                 <circle
                   cx={x2}
                   cy={y2}
-                  r={4}
+                  r={granularity === 'lifetime' ? 3 : 4}
                   fill={isUp ? 'var(--k-up)' : 'var(--k-down)'}
                 />
               </g>
             )
           })}
-        {points.map((p, i) => (
-          <text
-            key={p.date}
-            x={50 + i * 36}
-            y={height - 4}
-            fontSize={10}
-            fill="var(--text-muted)"
-            textAnchor="middle"
-          >
-            {formatDate(p.date)}
-          </text>
-        ))}
+        {points.map((p, i) => {
+          if (granularity === 'lifetime' && (i % showYearEvery !== 0 && i !== points.length - 1)) return null
+          const x = points.length > 1 ? leftMargin + (i / (points.length - 1)) * chartWidth : leftMargin
+          return (
+            <text
+              key={`${p.date}-${i}`}
+              x={x}
+              y={height - 4}
+              fontSize={10}
+              fill="var(--text-muted)"
+              textAnchor="middle"
+            >
+              {formatDate(p.date)}
+            </text>
+          )
+        })}
       </svg>
       <div
         style={{
@@ -121,6 +159,7 @@ export function KLineChart({ points, lang, granularity, height = 200 }: Props) {
           borderTop: '1px solid #f3f4f6',
           fontSize: '0.8rem',
           color: 'var(--text-muted)',
+          whiteSpace: 'pre-line',
         }}
       >
         {T.footnote}
