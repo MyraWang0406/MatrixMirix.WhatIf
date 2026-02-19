@@ -9,6 +9,7 @@ import { ProfileView } from './components/ProfileView'
 import { DayView } from './components/DayView'
 import { WeekView } from './components/WeekView'
 import { MonthView } from './components/MonthView'
+import { QuarterView } from './components/QuarterView'
 import { YearView } from './components/YearView'
 import { LifetimeView } from './components/LifetimeView'
 
@@ -80,10 +81,12 @@ export default function App() {
         )}
         {dimension === 'week' && hasProfile && <WeekView date={date} lang={lang} profileId={profileId!} />}
         {dimension === 'month' && hasProfile && <MonthView date={date} lang={lang} profileId={profileId!} />}
+        {dimension === 'quarter' && hasProfile && <QuarterView date={date} lang={lang} profileId={profileId!} />}
         {dimension === 'year' && hasProfile && <YearView date={date} lang={lang} profileId={profileId!} />}
         {dimension === 'lifetime' && hasProfile && <LifetimeView date={date} lang={lang} profileId={profileId!} />}
         {dimension === 'week' && !hasProfile && null}
         {dimension === 'month' && !hasProfile && null}
+        {dimension === 'quarter' && !hasProfile && null}
         {dimension === 'year' && !hasProfile && null}
         {dimension === 'lifetime' && !hasProfile && null}
       </main>

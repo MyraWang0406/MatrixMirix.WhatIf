@@ -17,12 +17,13 @@ interface Props {
 
 export function Header({ dimension, onDimensionChange, lang, onLangChange, date, onDateChange }: Props) {
   const T = getText(lang)
-  const dims: Dimension[] = ['profile', 'day', 'week', 'month', 'year', 'lifetime']
+  const dims: Dimension[] = ['profile', 'day', 'week', 'month', 'quarter', 'year', 'lifetime']
   const dimLabels: Record<Dimension, string> = {
     profile: T.dimProfile,
     day: T.dimDay,
     week: T.dimWeek,
     month: T.dimMonth,
+    quarter: T.dimQuarter,
     year: T.dimYear,
     lifetime: T.dimLifetime,
   }
@@ -110,7 +111,7 @@ export function Header({ dimension, onDimensionChange, lang, onLangChange, date,
         <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
           {T.slogan} {T.sloganSub}
         </span>
-        {(dimension === 'day') && onDateChange && (
+        {(dimension === 'day' || dimension === 'quarter') && onDateChange && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <button
               type="button"

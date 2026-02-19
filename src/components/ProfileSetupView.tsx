@@ -13,6 +13,7 @@ import {
   PROVINCES_ZH,
   CITIES_BY_PROVINCE_ZH,
   CITIES_BY_COUNTRY_ZH,
+  CITIES_BY_COUNTRY_EN,
 } from '../data/regions'
 
 interface Props {
@@ -155,10 +156,12 @@ export function ProfileSetupView({ lang, onDone, initialProfileId }: Props) {
           </div>
           <div>
             <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{T.profileBirthDate}</label>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0.15rem 0 0.25rem 0' }}>{T.profileBirthDateHint}</p>
             <input
               type="date"
               value={birthDate}
               onChange={(e) => setBirthDate(e.target.value)}
+              lang={lang}
               style={{
                 width: '100%',
                 padding: '0.5rem',
@@ -218,7 +221,14 @@ export function ProfileSetupView({ lang, onDone, initialProfileId }: Props) {
                 {country === '中国' && province
                   ? (CITIES_BY_PROVINCE_ZH[province] ?? []).map((c) => <option key={c} value={c}>{c}</option>)
                   : country
-                    ? (CITIES_BY_COUNTRY_ZH[country] ?? []).map((c) => <option key={c} value={c}>{c}</option>)
+                    ? (() => {
+                        const citiesZh = CITIES_BY_COUNTRY_ZH[country] ?? []
+                        const enKey = COUNTRIES_EN[COUNTRIES_ZH.indexOf(country as typeof COUNTRIES_ZH[number])]
+                        const citiesEn = (enKey && CITIES_BY_COUNTRY_EN[enKey]) ?? []
+                        return citiesZh.map((c, i) => (
+                          <option key={c} value={c}>{lang === 'zh' ? c : (citiesEn[i] ?? c)}</option>
+                        ))
+                      })()
                     : null}
               </select>
               {city === '其他' && (

@@ -1,4 +1,4 @@
-export type Dimension = 'profile' | 'day' | 'week' | 'month' | 'year' | 'lifetime'
+export type Dimension = 'profile' | 'day' | 'week' | 'month' | 'quarter' | 'year' | 'lifetime'
 
 /** EverMemOS-style: Profile = Who，长期身份与档案 */
 export interface Profile {
