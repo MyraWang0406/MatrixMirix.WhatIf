@@ -3,7 +3,7 @@ export type Lang = 'zh' | 'en'
 export const t = {
   zh: {
     appTitle: '人生有悔 · 内耗决策推演',
-    slogan: '微观个人都不过是宏观棋盘上的棋子罢了。通过经历存档，复盘经历及决策轨迹，化被动为主动：今朝一棋子，他日布盘棋。',
+    slogan: '微观个体都不过是宏观棋盘上的棋子罢了。通过经历存档，复盘经历及决策轨迹，化被动为主动：今朝一棋子，他日布盘棋。',
     sloganSub: '',
     dimProfile: '档案维护',
     dimDay: '日',
@@ -62,7 +62,7 @@ export const t = {
     monthKline: '本月情绪走势',
     yearKline: '今年情绪走势',
     lifetimeKline: '一生情绪走势',
-    footnote: '风水轮流转，运势有高低，祝你努力于成长，而非内耗；最想要的都拥有，得不到的都释怀。',
+    footnote: '风水轮流转，运势有高低，祝你着眼未来，当下努力于成长进步，最想要的都拥有。通过复盘反思修正，让今后：愿力>业力>当下能力，而非沉湎内耗于过去；得不到的都释怀。',
     regret: '悔棋',
     regretArchive: '悔棋留档',
     regretGoal: '当时真实目标',
@@ -181,7 +181,7 @@ export const t = {
     monthKline: 'Monthly mood',
     yearKline: 'Yearly mood',
     lifetimeKline: 'Lifetime mood',
-    footnote: 'Fortunes turn; focus on growth, not rumination; may you have what you want, and let go of what you don’t.',
+    footnote: 'Fortunes turn; may you look to the future, grow in the present, and have what you want. Through review and reflection, let will > karma > current capacity, not dwell on the past; let go of what you don’t.',
     regret: 'Regret',
     regretArchive: 'Regret archive',
     regretGoal: 'Real goal then',
