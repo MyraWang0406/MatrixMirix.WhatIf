@@ -180,14 +180,6 @@ export function DayView({ date, lang, profileId, currentProfile, onNeedProfile }
         hasProfile={!!profileId}
         profileBirthDate={currentProfile?.birthDate}
       />
-      {!profileId && (
-        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0 }}>
-          {lang === 'zh' ? '未登录，编辑不会保存；' : 'Not logged in — edits are not saved. '}
-          <button type="button" onClick={onNeedProfile} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--primary)', cursor: 'pointer', textDecoration: 'underline', fontSize: 'inherit' }}>
-            {lang === 'zh' ? '登录/注册后可保存' : 'Sign in to save'}
-          </button>
-        </p>
-      )}
       <EmotionRecord
         score={displayMood}
         lang={lang}
@@ -197,6 +189,8 @@ export function DayView({ date, lang, profileId, currentProfile, onNeedProfile }
         entries={displayTimeline}
         lang={lang}
         onEntriesChange={handleTimelineChange}
+        hasProfile={!!profileId}
+        onNeedProfile={onNeedProfile}
       />
       <GoBoard
         scores={scores.length ? scores : [5]}

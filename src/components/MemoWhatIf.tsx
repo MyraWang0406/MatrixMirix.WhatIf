@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { TimelineEntry } from '../types'
 import type { MemoTagType } from '../types'
 import type { Lang } from '../i18n'
@@ -10,10 +11,13 @@ interface Props {
   entries: TimelineEntry[]
   lang: Lang
   onEntriesChange: (entries: TimelineEntry[]) => void
+  hasProfile?: boolean
+  onNeedProfile?: () => void
 }
 
-export function MemoWhatIf({ entries, lang, onEntriesChange }: Props) {
+export function MemoWhatIf({ entries, lang, onEntriesChange, hasProfile, onNeedProfile }: Props) {
   const T = getText(lang)
+  const [showSavePrompt, setShowSavePrompt] = useState(false)
   const tagLabels: Record<MemoTagType, string> = {
     心情随感: T.tagTypeMood,
     职场随记: T.tagTypeWork,
@@ -190,6 +194,100 @@ export function MemoWhatIf({ entries, lang, onEntriesChange }: Props) {
           </div>
         ))}
       </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
+        <button
+          type="button"
+          onClick={() => {
+            if (hasProfile) return
+            setShowSavePrompt(true)
+          }}
+          style={{
+            padding: '0.5rem 1rem',
+            fontSize: '0.85rem',
+            background: 'var(--primary)',
+            color: 'white',
+            border: 'none',
+            borderRadius: 8,
+            cursor: 'pointer',
+          }}
+        >
+          {T.saveBtn}
+        </button>
+      </div>
+      {showSavePrompt && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.4)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '1rem',
+          }}
+          onClick={() => setShowSavePrompt(false)}
+        >
+          <div
+            style={{
+              background: 'var(--card-bg)',
+              borderRadius: 12,
+              padding: '1.5rem',
+              maxWidth: 360,
+              width: '100%',
+              boxShadow: '0 10px 40px rgba(0,0,0,0.15)',
+              position: 'relative',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setShowSavePrompt(false)}
+              aria-label={lang === 'zh' ? '关闭' : 'Close'}
+              style={{
+                position: 'absolute',
+                top: 8,
+                right: 8,
+                width: 28,
+                height: 28,
+                padding: 0,
+                border: 'none',
+                borderRadius: '50%',
+                background: 'var(--text-muted)',
+                color: 'white',
+                fontSize: '1.1rem',
+                lineHeight: 1,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              ×
+            </button>
+            <p style={{ margin: '0 0 1.25rem 0', fontSize: '0.95rem', color: 'var(--text)' }}>
+              {T.savePromptMessage}
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => { onNeedProfile?.(); setShowSavePrompt(false) }}
+                style={{
+                  padding: '0.5rem 1rem',
+                  fontSize: '0.9rem',
+                  border: 'none',
+                  borderRadius: 8,
+                  background: 'var(--primary)',
+                  color: 'white',
+                  cursor: 'pointer',
+                }}
+              >
+                {T.goLoginRegister}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   )
 }

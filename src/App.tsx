@@ -21,23 +21,15 @@ export default function App() {
 
   const profileId = getCurrentProfileId()
   const currentProfile = getCurrentProfile()
-  const hasProfile = !!profileId
 
   const setLang = useCallback((l: Lang) => {
     setLangState(l)
     saveLang(l)
   }, [])
 
-  const setDimension = useCallback(
-    (d: Dimension) => {
-      if (d !== 'profile' && d !== 'day' && !hasProfile) {
-        setShowLoginPrompt(true)
-        return
-      }
-      setDimensionState(d)
-    },
-    [hasProfile]
-  )
+  const setDimension = useCallback((d: Dimension) => {
+    setDimensionState(d)
+  }, [])
 
   const goProfile = () => {
     setShowLoginPrompt(false)
@@ -79,16 +71,11 @@ export default function App() {
             onNeedProfile={() => setShowLoginPrompt(true)}
           />
         )}
-        {dimension === 'week' && hasProfile && <WeekView date={date} lang={lang} profileId={profileId!} />}
-        {dimension === 'month' && hasProfile && <MonthView date={date} lang={lang} profileId={profileId!} />}
-        {dimension === 'quarter' && hasProfile && <QuarterView date={date} lang={lang} profileId={profileId!} />}
-        {dimension === 'year' && hasProfile && <YearView date={date} lang={lang} profileId={profileId!} />}
-        {dimension === 'lifetime' && hasProfile && <LifetimeView date={date} lang={lang} profileId={profileId!} />}
-        {dimension === 'week' && !hasProfile && null}
-        {dimension === 'month' && !hasProfile && null}
-        {dimension === 'quarter' && !hasProfile && null}
-        {dimension === 'year' && !hasProfile && null}
-        {dimension === 'lifetime' && !hasProfile && null}
+        {dimension === 'week' && <WeekView date={date} lang={lang} profileId={profileId} />}
+        {dimension === 'month' && <MonthView date={date} lang={lang} profileId={profileId} />}
+        {dimension === 'quarter' && <QuarterView date={date} lang={lang} profileId={profileId} />}
+        {dimension === 'year' && <YearView date={date} lang={lang} profileId={profileId} />}
+        {dimension === 'lifetime' && <LifetimeView date={date} lang={lang} profileId={profileId} />}
       </main>
       <Footer lang={lang} />
       {showLoginPrompt && (
