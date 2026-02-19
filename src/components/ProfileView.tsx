@@ -101,12 +101,41 @@ export function ProfileView({ lang, onDone }: Props) {
               maxWidth: 360,
               width: '100%',
               boxShadow: '0 10px 40px rgba(0,0,0,0.15)',
+              position: 'relative',
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 style={{ margin: '0 0 1rem 0', fontSize: '1rem' }}>
+            <button
+              type="button"
+              onClick={() => setAuthModalOpen(false)}
+              aria-label={lang === 'zh' ? '关闭' : 'Close'}
+              style={{
+                position: 'absolute',
+                top: 8,
+                right: 8,
+                width: 28,
+                height: 28,
+                padding: 0,
+                border: 'none',
+                borderRadius: '50%',
+                background: 'var(--text-muted)',
+                color: 'white',
+                fontSize: '1.1rem',
+                lineHeight: 1,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              ×
+            </button>
+            <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1rem' }}>
               {authMode === 'login' ? T.login : T.register}
             </h3>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 1rem 0', lineHeight: 1.5 }}>
+              {lang === 'zh' ? '当前为本地档案，无需账号即可使用；如需云端同步可配置 EverMemOS。' : 'Local profile — no account needed. Configure EverMemOS for cloud sync.'}
+            </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               <button
                 type="button"

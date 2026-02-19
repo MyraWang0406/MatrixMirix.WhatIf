@@ -59,9 +59,35 @@ export function RegretModal({ lang, profileId, date, recordId, onClose }: Props)
           maxWidth: 420,
           width: '100%',
           boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+          position: 'relative',
         }}
         onClick={(e) => e.stopPropagation()}
       >
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={lang === 'zh' ? '关闭' : 'Close'}
+          style={{
+            position: 'absolute',
+            top: 8,
+            right: 8,
+            width: 28,
+            height: 28,
+            padding: 0,
+            border: 'none',
+            borderRadius: '50%',
+            background: 'var(--text-muted)',
+            color: 'white',
+            fontSize: '1.1rem',
+            lineHeight: 1,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          ×
+        </button>
         <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem' }}>{T.regretArchive}</h3>
         <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
           {T.regretDescAi}

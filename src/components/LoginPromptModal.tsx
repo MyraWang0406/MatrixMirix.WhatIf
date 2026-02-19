@@ -34,9 +34,39 @@ export function LoginPromptModal({ lang, onGoProfile, onClose }: Props) {
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 style={{ margin: '0 0 0.75rem 0', fontSize: '1.05rem' }}>{T.loginPromptTitle}</h3>
-        <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: '0 0 1.25rem 0', lineHeight: 1.5 }}>
+        <div style={{ position: 'relative', marginBottom: '0.5rem' }}>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={lang === 'zh' ? '关闭' : 'Close'}
+            style={{
+              position: 'absolute',
+              top: -8,
+              right: -8,
+              width: 28,
+              height: 28,
+              padding: 0,
+              border: 'none',
+              borderRadius: '50%',
+              background: 'var(--text-muted)',
+              color: 'white',
+              fontSize: '1.1rem',
+              lineHeight: 1,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            ×
+          </button>
+        </div>
+        <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.05rem' }}>{T.loginPromptTitle}</h3>
+        <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: '0 0 0.5rem 0', lineHeight: 1.5 }}>
           {T.loginPromptDesc}
+        </p>
+        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 1.25rem 0', lineHeight: 1.5 }}>
+          {lang === 'zh' ? '当前为本地档案，无需登录；请先到「档案维护」创建或选择档案即可使用。' : 'Local profile only — no login required. Create or select a profile in Profile to start.'}
         </p>
         <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
           <button

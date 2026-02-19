@@ -189,7 +189,7 @@ export function DayView({ date, lang, profileId, currentProfile, onNeedProfile }
         edits={record.edits}
         lang={lang}
         whatIfContext={record.whatIfContext}
-        onWhatIfContextChange={profileId ? (v) => persist({ whatIfContext: v }) : undefined}
+        onWhatIfContextChange={(v) => persist({ whatIfContext: v })}
       />
       {isPast && record.edits > 0 && profileId && (
         <button

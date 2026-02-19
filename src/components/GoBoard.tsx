@@ -19,6 +19,8 @@ export function GoBoard({ scores, moves, edits, lang, whatIfContext = '', onWhat
   const [animating, setAnimating] = useState(false)
   const [tooltipVisible, setTooltipVisible] = useState(false)
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 })
+  const [boardTooltipVisible, setBoardTooltipVisible] = useState(false)
+  const [boardTooltipPos, setBoardTooltipPos] = useState({ x: 0, y: 0 })
 
   useEffect(() => {
     setInterp(interpretBoard(scores, moves, edits))
@@ -147,8 +149,45 @@ export function GoBoard({ scores, moves, edits, lang, whatIfContext = '', onWhat
             padding: 8,
             borderRadius: 4,
             border: `2px solid var(--board-line)`,
+            cursor: 'help',
           }}
+          onMouseEnter={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect()
+            setBoardTooltipPos({ x: rect.left, y: rect.bottom + 6 })
+            setBoardTooltipVisible(true)
+          }}
+          onMouseLeave={() => setBoardTooltipVisible(false)}
         >
+          {boardTooltipVisible && (
+            <div
+              role="tooltip"
+              style={{
+                position: 'fixed',
+                left: boardTooltipPos.x,
+                top: boardTooltipPos.y,
+                zIndex: 1000,
+                maxWidth: 320,
+                padding: '0.75rem 1rem',
+                background: 'var(--card-bg)',
+                border: '1px solid #e5e7eb',
+                borderRadius: 8,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+                fontSize: '0.8rem',
+                color: 'var(--text)',
+                lineHeight: 1.6,
+                whiteSpace: 'pre-line',
+                pointerEvents: 'none',
+              }}
+            >
+              {T.boardHoverUser}
+              {'\n\n'}
+              {T.boardHoverSituation}: {situationLabels[interp.situation]}
+              {'\n'}
+              {T.survival}: {survivalLabels[interp.survival]}
+              {'\n'}
+              {T.boardHoverAdvice}: {actionLabels[interp.action]}
+            </div>
+          )}
           <svg
             width={boardSize * cellSize + 16}
             height={boardSize * cellSize + 16}
@@ -259,15 +298,15 @@ export function GoBoard({ scores, moves, edits, lang, whatIfContext = '', onWhat
           >
             {T.boardCore}
           </p>
-          {onWhatIfContextChange && (
+          {(onWhatIfContextChange !== undefined) && (
             <div style={{ marginTop: '1rem', width: '100%' }}>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.5rem', color: 'var(--text)' }}>
-                {T.otherInfoSupplement}
+                {T.whatIfContextLabel}
               </label>
               <textarea
                 value={whatIfContext}
                 onChange={(e) => onWhatIfContextChange(e.target.value)}
-                placeholder={lang === 'zh' ? '补充背景、假设与可能结果…' : 'Add context, assumptions, possible outcomes…'}
+                placeholder={T.whatIfSimulateHint}
                 rows={3}
                 style={{
                   width: '100%',
@@ -308,7 +347,7 @@ export function GoBoard({ scores, moves, edits, lang, whatIfContext = '', onWhat
                     cursor: 'pointer',
                   }}
                 >
-                  {T.whatIfPush}
+                  {T.simulateButton}
                 </button>
               </div>
             </div>
