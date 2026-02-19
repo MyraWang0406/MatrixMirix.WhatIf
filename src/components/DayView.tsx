@@ -1,0 +1,223 @@
+import { useCallback, useState } from 'react'
+import { format, isBefore, startOfDay } from 'date-fns'
+import type { DayRecord, TimelineEntry } from '../types'
+import type { Lang } from '../i18n'
+import { getText } from '../i18n'
+import { parseISO } from 'date-fns'
+import { getFortune, getConstellation } from '../utils/zodiac'
+import { getDayRecord, upsertDayRecord, loadRegrets, loadConstellationMode, saveConstellationMode } from '../store'
+import { genId } from '../utils/id'
+import { EmotionCalendar } from './EmotionCalendar'
+import { EmotionRecord } from './EmotionRecord'
+import { MemoWhatIf } from './MemoWhatIf'
+import { GoBoard } from './GoBoard'
+import { RegretModal } from './RegretModal'
+import { searchMemories, isEverMemOSEnabled } from '../services/evermemos'
+import { AdvicePanel } from './AdvicePanel'
+
+interface Props {
+  date: Date
+  lang: Lang
+  profileId: string | null
+  currentProfile: import('../types').Profile | null
+  onNeedProfile: () => void
+}
+
+function FutureReminderBanner({ lang, profileId }: { lang: Lang; profileId: string | null }) {
+  const T = getText(lang)
+  const [searching, setSearching] = useState(false)
+  const [similarMemories, setSimilarMemories] = useState<unknown[]>([])
+  const regrets = loadRegrets(profileId)
+  if (regrets.length === 0) return null
+
+  const handleSimulate = async () => {
+    if (!profileId) return
+    setSearching(true)
+    setSimilarMemories([])
+    try {
+      const res = await searchMemories(profileId, '过去类似场景的内耗或冲动决策与触发场景', { memoryTypes: ['event_log', 'episodic_memory'], topK: 5 })
+      if (res.ok && res.memories) setSimilarMemories(Array.isArray(res.memories) ? res.memories : [])
+    } finally {
+      setSearching(false)
+    }
+  }
+
+  return (
+    <div
+      style={{
+        padding: '0.75rem 1rem',
+        background: 'rgba(74,144,226,0.08)',
+        borderRadius: 8,
+        fontSize: '0.85rem',
+        color: 'var(--primary-dark)',
+        border: '1px solid rgba(74,144,226,0.3)',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <span>{T.futureReminder}</span>
+        {profileId && isEverMemOSEnabled() && (
+          <button
+            type="button"
+            onClick={handleSimulate}
+            disabled={searching}
+            style={{
+              padding: '0.35rem 0.65rem',
+              fontSize: '0.8rem',
+              border: '1px solid var(--primary)',
+              borderRadius: 6,
+              background: 'transparent',
+              color: 'var(--primary)',
+              cursor: searching ? 'wait' : 'pointer',
+            }}
+          >
+            {searching ? (lang === 'zh' ? '检索中…' : 'Searching…') : (lang === 'zh' ? '模拟落子推演' : 'Simulate')}
+          </button>
+        )}
+      </div>
+      {similarMemories.length > 0 && (
+        <>
+          <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            {lang === 'zh' ? '类似过往：' : 'Similar past: '}
+            {JSON.stringify(similarMemories).slice(0, 200)}…
+          </div>
+          <AdvicePanel lang={lang} compact />
+        </>
+      )}
+    </div>
+  )
+}
+
+export function DayView({ date, lang, profileId, currentProfile, onNeedProfile }: Props) {
+  const [, setRefresh] = useState(0)
+  const [showRegret, setShowRegret] = useState(false)
+  const isPast = isBefore(startOfDay(date), startOfDay(new Date()))
+  const dateStr = format(date, 'yyyy-MM-dd')
+  const stored = profileId ? getDayRecord(dateStr, profileId) : null
+  const legacy = stored as (DayRecord & { expectedScore?: number | null; actualScore?: number | null }) | null
+  const record: DayRecord = legacy
+    ? {
+        ...legacy,
+        profileId: legacy.profileId ?? profileId ?? '',
+        moodScore: legacy.moodScore ?? legacy.actualScore ?? legacy.expectedScore ?? null,
+        timeline: (legacy.timeline ?? []).map((e) => ({
+          ...e,
+          tagType: (e as TimelineEntry).tagType ?? '心情随感',
+        })),
+      }
+    : {
+        id: genId(),
+        profileId: profileId ?? '',
+        date: dateStr,
+        moodScore: null,
+        timeline: [],
+        edits: 0,
+      }
+
+  const constellationMode = loadConstellationMode()
+  let fortune = getFortune(date, lang)
+  if (constellationMode === 'profile' && currentProfile?.birthDate) {
+    fortune = { ...fortune, constellation: getConstellation(parseISO(currentProfile.birthDate), lang) }
+  }
+
+  const persist = useCallback(
+    (patch: Partial<DayRecord>) => {
+      if (!profileId) return
+      const isEdit =
+        patch.moodScore !== undefined ||
+        patch.timeline !== undefined
+      const next: DayRecord = {
+        ...record,
+        ...patch,
+        profileId,
+        edits: isEdit ? record.edits + 1 : record.edits,
+      }
+      upsertDayRecord(next)
+      setRefresh((r) => r + 1)
+    },
+    [record, profileId]
+  )
+
+  const handleMoodChange = useCallback(
+    (v: number | null) => {
+      if (!profileId) {
+        onNeedProfile()
+        return
+      }
+      persist({ moodScore: v })
+    },
+    [persist, profileId, onNeedProfile]
+  )
+
+  const handleTimelineChange = useCallback(
+    (timeline: typeof record.timeline) => {
+      if (!profileId) {
+        onNeedProfile()
+        return
+      }
+      persist({ timeline })
+    },
+    [persist, profileId, onNeedProfile]
+  )
+
+  const moves = (record.timeline?.length ?? 0) + (record.moodScore != null ? 1 : 0)
+  const scores = [record.moodScore].filter((s): s is number => s != null && !isNaN(s))
+
+  return (
+    <div className="day-view" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      <FutureReminderBanner lang={lang} profileId={profileId} />
+      <EmotionCalendar
+        fortune={fortune}
+        lang={lang}
+        constellationMode={constellationMode}
+        onConstellationModeChange={(m) => { saveConstellationMode(m); setRefresh((r) => r + 1) }}
+        hasProfile={!!profileId}
+        profileBirthDate={currentProfile?.birthDate}
+      />
+      <EmotionRecord
+        score={record.moodScore}
+        lang={lang}
+        onChange={handleMoodChange}
+      />
+      <MemoWhatIf
+        entries={record.timeline}
+        lang={lang}
+        onEntriesChange={handleTimelineChange}
+      />
+      <GoBoard
+        scores={scores.length ? scores : [5]}
+        moves={moves}
+        edits={record.edits}
+        lang={lang}
+        whatIfContext={record.whatIfContext}
+        onWhatIfContextChange={profileId ? (v) => persist({ whatIfContext: v }) : undefined}
+      />
+      {isPast && record.edits > 0 && profileId && (
+        <button
+          type="button"
+          onClick={() => setShowRegret(true)}
+          style={{
+            alignSelf: 'flex-start',
+            padding: '0.5rem 1rem',
+            fontSize: '0.85rem',
+            border: '1px solid var(--primary)',
+            borderRadius: 8,
+            background: 'transparent',
+            color: 'var(--primary)',
+            cursor: 'pointer',
+          }}
+        >
+          {lang === 'zh' ? '悔棋留档' : 'Archive Regret'}
+        </button>
+      )}
+      {showRegret && profileId && (
+        <RegretModal
+          lang={lang}
+          profileId={profileId}
+          date={dateStr}
+          recordId={record.id}
+          onClose={() => setShowRegret(false)}
+        />
+      )}
+    </div>
+  )
+}
