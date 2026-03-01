@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { format, parseISO } from 'date-fns'
 import { zhCN, enUS } from 'date-fns/locale'
 import type { Lang } from '../i18n'
@@ -19,35 +20,31 @@ interface Props {
 
 const localeMap = { zh: zhCN, en: enUS }
 
-function getYAxisTicks(yMin: number, yMax: number, granularity: string): number[] {
-  if (granularity === 'lifetime' || yMax - yMin > 20) {
-    const step = 20
-    const low = Math.floor(yMin / step) * step
-    const high = Math.ceil(yMax / step) * step
-    const ticks: number[] = []
-    for (let v = low; v <= high; v += step) ticks.push(v)
-    return ticks.length ? ticks : [0, 50, 100]
-  }
-  return [0, 2.5, 5, 7.5, 10]
+// Build OHLC candle data from sequential scores
+// Each bar: open=prev score, close=cur score, high=max(open,close)+tiny shadow, low=min(open,close)-tiny shadow
+function buildCandles(points: KPoint[]): [number, number, number, number][] {
+  const valid = points.filter((p) => p.score != null && !isNaN(p.score!))
+  if (valid.length < 2) return []
+
+  return valid.slice(1).map((p, i) => {
+    const prev = valid[i]
+    const open = prev.score!
+    const close = p.score!
+    const bodyRange = Math.abs(close - open)
+    const shadowExtra = Math.max(bodyRange * 0.3, 0.5)
+    const high = Math.max(open, close) + shadowExtra
+    const low = Math.min(open, close) - shadowExtra
+    return [open, close, low, high] as [number, number, number, number]
+  })
 }
 
-export function KLineChart({ points, lang, granularity, height = 200 }: Props) {
+export function KLineChart({ points, lang, granularity, height = 220 }: Props) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const chartRef = useRef<unknown>(null)
   const locale = localeMap[lang]
   const T = getText(lang)
-  const valid = points.filter((p) => p.score != null && !isNaN(p.score))
-  const scores = valid.map((p) => p.score!)
-  const min = scores.length ? Math.min(...scores, 0) : 0
-  const max = scores.length ? Math.max(...scores, 10) : 10
-  const range = max - min || 1
-  const pad = range * 0.1
-  const yMin = min - pad
-  const yMax = max + pad
-  const yRange = yMax - yMin
 
-  const leftMargin = 52
-  const chartWidth = Math.max(400, points.length * 36)
-  const totalWidth = leftMargin + chartWidth
-  const stepX = valid.length > 1 ? chartWidth / (valid.length - 1) : 0
+  const valid = points.filter((p) => p.score != null && !isNaN(p.score!))
 
   const formatDate = (d: string) => {
     const parsed = parseISO(d)
@@ -58,9 +55,148 @@ export function KLineChart({ points, lang, granularity, height = 200 }: Props) {
     return format(parsed, 'yyyy', { locale })
   }
 
-  const getChartY = (s: number) => 20 + (1 - (s - yMin) / yRange) * (height - 40)
-  const yAxisTicks = getYAxisTicks(yMin, yMax, granularity)
-  const showYearEvery = granularity === 'lifetime' && points.length > 15 ? 10 : 1
+  useEffect(() => {
+    if (!containerRef.current || valid.length < 2) return
+
+    // Dynamically import ECharts to avoid SSR issues
+    import('echarts').then((echarts) => {
+      if (!containerRef.current) return
+
+      // Dispose old chart if exists
+      if (chartRef.current) {
+        ;(chartRef.current as { dispose(): void }).dispose()
+      }
+
+      const chart = echarts.init(containerRef.current)
+      chartRef.current = chart
+
+      const dates = valid.slice(1).map((p) => formatDate(p.date))
+      const candles = buildCandles(points) // [open, close, low, high]
+
+      // Color palette inspired by lifekline.ai
+      const UP_COLOR = '#ef4444'   // red = rising fortune (Chinese stock convention)
+      const DOWN_COLOR = '#22c55e' // green = falling fortune
+
+      const scores = valid.map((p) => p.score!)
+      const scoreMin = Math.min(...scores)
+      const scoreMax = Math.max(...scores)
+      const yPad = (scoreMax - scoreMin) * 0.15 || 5
+
+      const isLifetime = granularity === 'lifetime'
+
+      const option = {
+        backgroundColor: 'transparent',
+        animation: true,
+        animationDuration: 600,
+        grid: {
+          top: 16,
+          bottom: isLifetime ? 48 : 36,
+          left: 52,
+          right: 20,
+        },
+        tooltip: {
+          trigger: 'axis',
+          axisPointer: { type: 'cross' },
+          formatter: (params: unknown[]) => {
+            const p = (params as { name: string; data: number[] }[])[0]
+            if (!p?.data) return ''
+            const [open, close] = p.data
+            const dir = close >= open ? '↑' : '↓'
+            const color = close >= open ? UP_COLOR : DOWN_COLOR
+            return `<div style="font-size:12px">
+              <div style="font-weight:600;margin-bottom:4px">${p.name}</div>
+              <div style="color:${color}">${dir} ${lang === 'zh' ? '运势' : 'Fortune'}: ${close.toFixed(1)}</div>
+              <div style="color:#9ca3af;font-size:11px">${lang === 'zh' ? '前值' : 'Prev'}: ${open.toFixed(1)}</div>
+            </div>`
+          },
+        },
+        xAxis: {
+          type: 'category',
+          data: dates,
+          boundaryGap: true,
+          axisLine: { lineStyle: { color: '#e5e7eb' } },
+          axisLabel: {
+            color: '#6b7280',
+            fontSize: isLifetime ? 9 : 10,
+            interval: isLifetime && dates.length > 20
+              ? Math.floor(dates.length / 10)
+              : 'auto',
+            rotate: isLifetime ? 45 : 0,
+          },
+          axisTick: { show: false },
+          splitLine: { show: false },
+        },
+        yAxis: {
+          type: 'value',
+          min: Math.max(0, scoreMin - yPad),
+          max: scoreMax + yPad,
+          splitNumber: isLifetime ? 4 : 4,
+          axisLabel: {
+            color: '#6b7280',
+            fontSize: 10,
+            formatter: (v: number) => v.toFixed(0),
+          },
+          axisLine: { show: false },
+          axisTick: { show: false },
+          splitLine: { lineStyle: { color: '#f3f4f6', type: 'dashed' } },
+        },
+        series: [
+          {
+            type: 'candlestick',
+            data: candles,
+            itemStyle: {
+              color: UP_COLOR,         // bullish body fill
+              color0: DOWN_COLOR,      // bearish body fill
+              borderColor: UP_COLOR,   // bullish border
+              borderColor0: DOWN_COLOR,// bearish border
+              borderWidth: 1.5,
+            },
+            barMaxWidth: isLifetime ? 6 : 14,
+          },
+          // Overlay a subtle area line for trend context
+          {
+            type: 'line',
+            data: valid.slice(1).map((p) => p.score),
+            smooth: 0.4,
+            symbol: 'none',
+            lineStyle: {
+              color: 'rgba(99,102,241,0.25)',
+              width: 1.5,
+              type: 'dashed',
+            },
+            areaStyle: {
+              color: {
+                type: 'linear',
+                x: 0, y: 0, x2: 0, y2: 1,
+                colorStops: [
+                  { offset: 0, color: 'rgba(99,102,241,0.10)' },
+                  { offset: 1, color: 'rgba(99,102,241,0.00)' },
+                ],
+              },
+            },
+            z: 1,
+          },
+        ],
+      }
+
+      chart.setOption(option)
+
+      const handleResize = () => chart.resize()
+      window.addEventListener('resize', handleResize)
+      return () => {
+        window.removeEventListener('resize', handleResize)
+        chart.dispose()
+      }
+    })
+
+    return () => {
+      if (chartRef.current) {
+        ;(chartRef.current as { dispose(): void }).dispose()
+        chartRef.current = null
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [points, lang, granularity])
 
   return (
     <section
@@ -69,89 +205,38 @@ export function KLineChart({ points, lang, granularity, height = 200 }: Props) {
         background: 'var(--card-bg)',
         borderRadius: 12,
         padding: '1rem 1.25rem',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+        boxShadow: '0 1px 6px rgba(0,0,0,0.08)',
       }}
     >
       {granularity === 'lifetime' && (
-        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
-          {T.scoreAxis} 0–100 · {T.yearAxis}
+        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '0.25rem', display: 'flex', gap: 12, alignItems: 'center' }}>
+          <span>{T.scoreAxis} 0–100 · {T.yearAxis}</span>
+          <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <span style={{ display: 'inline-block', width: 10, height: 10, background: '#ef4444', borderRadius: 2 }} />
+            <span>{lang === 'zh' ? '运势上行' : 'Rising'}</span>
+            <span style={{ display: 'inline-block', width: 10, height: 10, background: '#22c55e', borderRadius: 2, marginLeft: 4 }} />
+            <span>{lang === 'zh' ? '运势下行' : 'Falling'}</span>
+          </span>
         </div>
       )}
-      <svg
-        viewBox={`0 0 ${totalWidth} ${height}`}
-        preserveAspectRatio="xMidYMid meet"
-        style={{ width: '100%', maxWidth: '100%', height, display: 'block' }}
-      >
-        {yAxisTicks.map((v) => {
-          if (v < yMin - 1 || v > yMax + 1) return null
-          const y = getChartY(v)
-          return (
-            <g key={v}>
-              <line
-                x1={leftMargin}
-                y1={y}
-                x2={totalWidth}
-                y2={y}
-                stroke="#e5e7eb"
-                strokeWidth={0.5}
-              />
-              <text
-                x={leftMargin - 6}
-                y={y + 4}
-                fontSize={10}
-                fill="var(--text-muted)"
-                textAnchor="end"
-              >
-                {v}
-              </text>
-            </g>
-          )
-        })}
-        {valid.length >= 2 &&
-          valid.slice(1).map((p, i) => {
-            const prev = valid[i]
-            const x1 = leftMargin + i * stepX
-            const x2 = leftMargin + (i + 1) * stepX
-            const y1 = getChartY(prev.score!)
-            const y2 = getChartY(p.score!)
-            const isUp = p.score! >= prev.score!
-            return (
-              <g key={p.date}>
-                <line
-                  x1={x1}
-                  y1={y1}
-                  x2={x2}
-                  y2={y2}
-                  stroke={isUp ? 'var(--k-up)' : 'var(--k-down)'}
-                  strokeWidth={granularity === 'lifetime' ? 3.5 : 2.5}
-                  strokeLinecap="round"
-                />
-                <circle
-                  cx={x2}
-                  cy={y2}
-                  r={granularity === 'lifetime' ? 3 : 4}
-                  fill={isUp ? 'var(--k-up)' : 'var(--k-down)'}
-                />
-              </g>
-            )
-          })}
-        {points.map((p, i) => {
-          if (granularity === 'lifetime' && (i % showYearEvery !== 0 && i !== points.length - 1)) return null
-          const x = points.length > 1 ? leftMargin + (i / (points.length - 1)) * chartWidth : leftMargin
-          return (
-            <text
-              key={`${p.date}-${i}`}
-              x={x}
-              y={height - 4}
-              fontSize={10}
-              fill="var(--text-muted)"
-              textAnchor="middle"
-            >
-              {formatDate(p.date)}
-            </text>
-          )
-        })}
-      </svg>
+
+      {valid.length < 2 ? (
+        <div
+          style={{
+            height,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--text-muted)',
+            fontSize: '0.85rem',
+          }}
+        >
+          {lang === 'zh' ? '数据不足，请记录更多日记' : 'Not enough data yet'}
+        </div>
+      ) : (
+        <div ref={containerRef} style={{ width: '100%', height }} />
+      )}
+
       <div
         style={{
           marginTop: '0.75rem',
